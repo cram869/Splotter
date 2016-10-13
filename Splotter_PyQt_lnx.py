@@ -2,11 +2,16 @@
 
 import matplotlib
 #from PyQt4.QtCore import QStringList
-matplotlib.use('Qt4Agg')
+matplotlib.use('Qt5Agg')
 #import sys
 import os
 import touchstone as ts
-from PyQt4 import QtGui #, QtCore
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit,\
+    QFileDialog, QPushButton, QCheckBox, QDialog, \
+    QAction, QMainWindow, QTreeWidget, QTreeWidgetItem, QGridLayout,\
+    QAbstractItemView
+
 import pylab
 pylab.ion()
 from numpy import size, array, log10, abs, angle, pi, real, imag, unwrap
@@ -29,7 +34,7 @@ def phaseRad(x):
 
 #########################################################################################
 
-class sParamPlotter_(QtGui.QMainWindow):
+class sParamPlotter_(QMainWindow): #QtGui.QMainWindow):
 
     def __init__(self, session):
 
@@ -45,27 +50,27 @@ class sParamPlotter_(QtGui.QMainWindow):
         # create a menu bar for the window
         menubar = self.menuBar()
         # Enable user to load a .s4p file
-        file_action = QtGui.QAction(QtGui.QIcon('file.png'), '&Load .s*p File', self)
+        file_action = QAction(QIcon('file.png'), '&Load .s*p File', self)
         file_action.setShortcut('Ctrl+O')
         file_action.setStatusTip('Import data from a file')
         file_action.triggered.connect(self.loadFile)
         file_menu = menubar.addMenu('&Load File')
         file_menu.addAction(file_action)
         # Enable user to plot Loaded traces
-        plot_action = QtGui.QAction(QtGui.QIcon('plot.png'), '&Plot', self)
+        plot_action = QAction(QIcon('plot.png'), '&Plot', self)
         plot_action.setShortcut('Ctrl+P')
         plot_action.setStatusTip('Plot a loaded trace')
         plot_action.triggered.connect(self.plotSelected)
         plot_menu = menubar.addMenu('&Plot')
         plot_menu.addAction(plot_action)
         # Enable to load and plot json files
-        json_action = QtGui.QAction(QtGui.QIcon('file.png'), '&Plot .json File', self)
+        json_action = QAction(QIcon('file.png'), '&Plot .json File', self)
         json_action.setShortcut('Ctrl+J')
         json_action.setStatusTip('Display plot from .json file')
         json_action.triggered.connect(self.loadJson)
         plot_menu.addAction(json_action)
         # Let user clear the tree
-        clear_action = QtGui.QAction(QtGui.QIcon('clear.png'), '&Clear', self)
+        clear_action = QAction(QIcon('clear.png'), '&Clear', self)
         clear_action.setShortcut('Ctrl+C')
         clear_action.setStatusTip('Clear all imported traces')
         clear_action.triggered.connect(self.clear_traces)
@@ -83,10 +88,10 @@ class sParamPlotter_(QtGui.QMainWindow):
         loads pre-plotted json plotSelected
         """
         if self.lastPath is None:
-            fullpath = str(QtGui.QFileDialog.getOpenFileName(self, 'Open File', '.', '*.json'))
+            fullpath = str(QFileDialog.getOpenFileName(self, 'Open File', '.', '*.json'))
             #fullpath = str(QtGui.QFileDialog.getOpenFileName(self, caption='Open File', filter='*.json'))
         else:
-            fullpath = str(QtGui.QFileDialog.getOpenFileName(self, 'Open File', self.lastPath, '*.json'))
+            fullpath = str(QFileDialog.getOpenFileName(self, 'Open File', self.lastPath, '*.json'))
         if fullpath == '':
             print('No *.json file selected')
         else:
@@ -139,19 +144,22 @@ class sParamPlotter_(QtGui.QMainWindow):
         if self.lastPath is None:
             #fullpath = str(QtGui.QFileDialog.getOpenFileName(self, caption='Open File', filter='*.s*p'))
             #fullpath = str(QtGui.QFileDialog.getOpenFileName(self, 'Open File', '.', 'Touchstone (*.s*p)'))
-            pathlist = QtGui.QFileDialog.getOpenFileNames(self, 'Open File', '.', 'Touchstone (*.s*p)')            
+            pathlist = QFileDialog.getOpenFileNames(self, 'Open File', '.', 'Touchstone (*.s*p)')            
             
         else:
             #fullpath = str(QtGui.QFileDialog.getOpenFileName(self, caption='Open File', directory=self.lastPath, filter='*.s*p'))
-            pathlist = QtGui.QFileDialog.getOpenFileNames(self, 'Open File', self.lastPath, 'Touchstone (*.s*p)')
+            pathlist = QFileDialog.getOpenFileNames(self, 'Open File', self.lastPath, 'Touchstone (*.s*p)')
 
-        
-        for pi in pathlist: # Iterates over the QStringList provided from the file dialog.
+        print("Path List: " + str( pathlist ) )
+        print(type(pathlist))
+        for pi in pathlist[0]: # Iterates over the QStringList provided from the file dialog.
             fullpath = str(pi)
             dirname, filename = os.path.split(fullpath)
             self.lastPath = dirname
             labelName, useBalSparms, useOEOrdering = getEntryPlusCheckbuttonValues_(self, 'Label For File', EntryDefault=filename, MixedModeDefault=0, OEOrderingDefault=1)
     
+            print("Full Path:" + str( fullpath ) )
+            print(type(fullpath))
             SModel = None
             model_index = len(self.models)
             if useBalSparms == 1:
@@ -228,7 +236,7 @@ class sParamPlotter_(QtGui.QMainWindow):
 
 ########################################################################################
 
-class Label_Window(QtGui.QWidget):
+class Label_Window(QWidget):
 
     """
     Creates a widget where labels, single line text entries, and the tree menu will live
@@ -242,24 +250,24 @@ class Label_Window(QtGui.QWidget):
 
     def init_widgets(self):
 
-        title = QtGui.QLabel('Title')
-        x_label = QtGui.QLabel('X Label')
-        y_label = QtGui.QLabel('Y Label')
-        X_func = QtGui.QLabel('X Function')
-        Y_func = QtGui.QLabel('Y Function')
+        title = QLabel('Title')
+        x_label = QLabel('X Label')
+        y_label = QLabel('Y Label')
+        X_func = QLabel('X Function')
+        Y_func = QLabel('Y Function')
 
-        self.title_edit = QtGui.QLineEdit()
+        self.title_edit = QLineEdit()
         self.title_edit.setText('')
-        self.x_label_edit = QtGui.QLineEdit()
+        self.x_label_edit = QLineEdit()
         self.x_label_edit.setText('Frequency (GHz)')
-        self.y_label_edit = QtGui.QLineEdit()
+        self.y_label_edit = QLineEdit()
         self.y_label_edit.setText('dB')
-        self.x_func_edit = QtGui.QLineEdit()
+        self.x_func_edit = QLineEdit()
         self.x_func_edit.setText('x*1.e-9')
-        self.y_func_edit = QtGui.QLineEdit()
+        self.y_func_edit = QLineEdit()
         self.y_func_edit.setText('20.*log10(abs(y))')
 
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
 
         grid.addWidget(title, 1, 0)
@@ -291,7 +299,7 @@ class Label_Window(QtGui.QWidget):
 
 #############################################################################
 
-class TreeMenu(QtGui.QTreeWidget):
+class TreeMenu(QTreeWidget):
 
     """
     A collapsable tree menu. Will Always have 3 levels
@@ -302,7 +310,7 @@ class TreeMenu(QtGui.QTreeWidget):
         self.setColumnCount(1)
         self.header().close()  # Removes Unneccessary header
         # Below enables Multiple List Items to be selected at once
-        self.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
+        self.setSelectionMode(QAbstractItemView.MultiSelection)
 
     def remove_all(self):
         # root = self.invisibleRootItem()
@@ -328,7 +336,7 @@ class TreeMenu(QtGui.QTreeWidget):
             child1 = Node()
             child1.setText(0, mode)
 
-        child2 = QtGui.QTreeWidgetItem()
+        child2 = QTreeWidgetItem()
         child2.setText(0, paramLabel)
 
         lvl0_flag, item = self.is_child(root, item)
@@ -379,7 +387,7 @@ class TreeMenu(QtGui.QTreeWidget):
 
 ######################################################################################
 
-class Node(QtGui.QTreeWidgetItem):
+class Node(QTreeWidgetItem):
     """
     An extension of the QTreeWidgetItem Class that allows for additional info to be stored in the nodes
     """
@@ -395,7 +403,7 @@ class Node(QtGui.QTreeWidgetItem):
 
 ##########################################################################################
 
-class EntryPlusCheckButtonDialog_(QtGui.QDialog):
+class EntryPlusCheckButtonDialog_(QDialog):
 
     def __init__(self, parent=None, title=None, EntryDefault = '', MixedModeDefault = 0, OEOrderingDefault = 0):
         super(EntryPlusCheckButtonDialog_, self).__init__(parent)
@@ -407,27 +415,27 @@ class EntryPlusCheckButtonDialog_(QtGui.QDialog):
 
     def body(self):
 
-        grid = QtGui.QGridLayout()
+        grid = QGridLayout()
         grid.setSpacing(10)
 
-        label = QtGui.QLabel(self.title)
-        self.labelValue = QtGui.QLineEdit()
+        label = QLabel(self.title)
+        self.labelValue = QLineEdit()
         self.labelValue.setText(self.EntryDefault)
         grid.addWidget(label, 1, 0)
         grid.addWidget(self.labelValue, 1, 1)
 
-        self.balsparmValue = QtGui.QCheckBox('Balanced S-parameters', self)
+        self.balsparmValue = QCheckBox('Balanced S-parameters', self)
         grid.addWidget(self.balsparmValue, 2, 0)
 
-        self.oeorderingValue = QtGui.QCheckBox('Odd-Even Ordering', self)
+        self.oeorderingValue = QCheckBox('Odd-Even Ordering', self)
         self.oeorderingValue.setCheckState(2)  # Starts out as checked
         grid.addWidget(self.oeorderingValue, 3,0)
 
-        accept_button = QtGui.QPushButton('Okay')
+        accept_button = QPushButton('Okay')
         accept_button.clicked.connect(self.accept)
         grid.addWidget(accept_button, 4, 0)
 
-        cancel_button = QtGui.QPushButton('Cancel')
+        cancel_button = QPushButton('Cancel')
         cancel_button.clicked.connect(self.reject)
         grid.addWidget(cancel_button, 4, 1)
 
@@ -468,7 +476,7 @@ def phaseRad(x):
 
 def main():
 
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     print (os.popen('pwd').read())
 
     argv = sys.argv[1:]
