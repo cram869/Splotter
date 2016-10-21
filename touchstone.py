@@ -136,7 +136,9 @@ class ScatteringModel(object):
         if not self.mixedmode:
             mode = {True: 1, False: 0}[self.oe_ordering]
             self.Sarray = MixedMode(self.Sarray, mode)
-            self.mixedmode = True            
+            self.mixedmode = True
+            
+        return self       
         
     def toSingleEnded(self):
         """
@@ -147,6 +149,8 @@ class ScatteringModel(object):
             mode = {True: 1, False: 0}[self.oe_ordering]
             self.Sarray = MixedMode(self.Sarray, mode, convert='To Single-Ended Mode')
             self.mixedmode = False
+            
+        return self
             
     def Renormalize(self, Zo_vector = None):
         """
