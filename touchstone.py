@@ -576,7 +576,7 @@ def MixedMode(S, mode = 1, convert='To Mixed Mode'):
             aav[2*I] = 1.0
             aav[2*I+1] = -1.0
             av.append(aav)
-        for I in range(Nports/2):
+        for I in range(int(Nports/2)):
             aav = [0,]*Nports
             aav[2*I] = 1.0
             aav[2*I+1] = 1.0
