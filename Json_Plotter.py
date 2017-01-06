@@ -1,15 +1,13 @@
 import json
 import sys
-import matplotlib as mpl
-mpl.use('qt4agg')
+#import matplotlib as mpl
+#mpl.use('Qt5Agg')
 import matplotlib.pyplot as plt
-
 
 def load_json_file(path):
 	with open(path, 'r') as file:
 		json_text = file.read()
 	return json_text
-
 
 def plot_json(json_session):
 	session_dict = json.loads(json_session)
@@ -35,7 +33,6 @@ def plot_json(json_session):
 		axes.set_ylim(plot_dict['y_lim'])
 		fig.show()  # Keeps Each plot in it's own window
 	plt.show()  # Blocks so the plots stay up until the user closes them
-
 
 if __name__ == '__main__':
 	argv = sys.argv[1:]

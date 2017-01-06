@@ -12,8 +12,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit,\
     QAction, QMainWindow, QTreeWidget, QTreeWidgetItem, QGridLayout,\
     QAbstractItemView
 
-import pylab
-pylab.ion()
+#import pylab
+#pylab.ion()
 from numpy import size, array, log10, abs, angle, pi, real, imag, unwrap
 import matplotlib.pyplot as plt
 from Jsonify import *
