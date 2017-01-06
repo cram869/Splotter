@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 import matplotlib
-#from PyQt4.QtCore import QStringList
 matplotlib.use('Qt5Agg')
-#import sys
+
 import os
 import touchstone as ts
 from PyQt5.QtGui import QIcon
@@ -12,8 +11,6 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit,\
     QAction, QMainWindow, QTreeWidget, QTreeWidgetItem, QGridLayout,\
     QAbstractItemView
 
-#import pylab
-#pylab.ion()
 from numpy import size, array, log10, abs, angle, pi, real, imag, unwrap
 import matplotlib.pyplot as plt
 from Jsonify import *
