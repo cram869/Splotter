@@ -9,7 +9,8 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit,\
     QFileDialog, QPushButton, QCheckBox, QDialog, \
     QAction, QMainWindow, QTreeWidget, QTreeWidgetItem, QGridLayout,\
-    QAbstractItemView
+    QAbstractItemView,\
+    QMenuBar
 
 from numpy import size, array, log10, abs, angle, pi, real, imag, unwrap
 import matplotlib.pyplot as plt
@@ -46,6 +47,7 @@ class sParamPlotter_(QMainWindow): #QtGui.QMainWindow):
     def initialize(self):
         # create a menu bar for the window
         menubar = self.menuBar()
+        print(type(menubar))
         # Enable user to load a .s4p file
         file_action = QAction(QIcon('file.png'), '&Load .s*p File', self)
         file_action.setShortcut('Ctrl+O')

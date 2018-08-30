@@ -11,7 +11,7 @@ import re
 def readmodel(sNpfilename, **kwargs):
     """
     Read a touchstone file and output a ScatteringModel.
-    
+
     See the help for ScatteringModel for the kwargs.
     """
     f, S = read(sNpfilename)
@@ -21,10 +21,10 @@ def readmodel(sNpfilename, **kwargs):
 class ScatteringModel(object):
     """
     The scattering model is a class to represent an N-port S-parameter.
-    
+
     Contains a numpy.ndarray with dimensions F x N x N, where F is the
-    number of frequency points. 
-    
+    number of frequency points.
+
     Options:
     oe_ordering = True (default)
     mixedmode = False (default)
@@ -32,21 +32,35 @@ class ScatteringModel(object):
     def __init__(self, farray = np.zeros([1]), Sarray = np.zeros([1,1,1]), **kwargs):
         self.farray = farray # frequency array
         self.Sarray = Sarray # ScatteringMatrix array
-        
+
         #self.attributes = {'oe_ordering': True,
         #                   'mixedmode': False}
         self.oe_ordering = True
         self.mixedmode = False
-        
+
+        # Set the reference impedance.
+        # Assume 50 ohm if none is given.
+        Ports = self.getPorts()
+        if 'Zo_vector' in kwargs or 'zo_vector' in kwargs:
+            self.zo = kwargs.pop('Zo_vector', kwargs.pop('zo_vector', np.array([50.0,]*Ports) ))
+            self.Zo = self.zo
+        elif 'Zo' in kwargs or 'zo' in kwargs:
+            Zo_scalar = kwargs.pop('Zo', kwargs.pop('zo', 50.0))
+            self.zo = np.array([Zo_scalar,]*Ports)
+            self.Zo = self.zo
+        else:
+            self.zo = np.array([50.0,]*Ports)
+            self.Zo = self.zo
+
         # Modify default parameters.  TODO: Allow the file input to do this in readmodel.
-        for ikey, ival in kwargs.items():        
+        for ikey, ival in kwargs.items():
             #self.attributes[ikey] = ival
-            self.__setattr__(ikey, ival)            
+            self.__setattr__(ikey, ival)
 
         # When translating the S-parameter data from an emout file from an AFS
         # sweep, the frequencies are out of order.  So, reordering is required
         # to make sense of th data.
-        
+
     def __copy__(self):
         M = ScatteringModel()
         for ikey, ival in self.__dict__.items():
@@ -63,28 +77,28 @@ class ScatteringModel(object):
     def __getitem__(self, slice_sel):
         """Return the ScatteringMatrix for the index slice specified."""
         return self.Sarray[slice_sel]
-    
+
     def __len__(self):
         """Return the number of frequencies."""
         return len(self.farray)
 
     def getTrace(self, port_neg, port_pos):
         if self.mixedmode:
-            def label2portindex(s):                
+            def label2portindex(s):
                 N = self.getPorts()
                 mode = s[0].lower()
                 mixedmodeport = int(s[1:])
                 ind = mixedmodeport-1
                 if mode == 'c':
-                    ind += N/2 # common mode ports are listed after differential                    
+                    ind += int(N/2) # common mode ports are listed after differential
                 return ind
-                    
+
             ind0 = label2portindex(port_neg)
             ind1 = label2portindex(port_pos)
             return self.Sarray[:,ind0,ind1]
         else:
             # Expect an integer or a string with regular (not 0-based index) for
-            # the input or V+ (port_pos) and the output or V- port (port_neg).            
+            # the input or V+ (port_pos) and the output or V- port (port_neg).
             ind0 = int(port_neg) - 1
             ind1 = int(port_pos) - 1
             return self.Sarray[:,ind0,ind1]
@@ -92,14 +106,14 @@ class ScatteringModel(object):
     def concat(self, S2):
         """
         Concatenate the data of this model and the S2 scattering model.
-        
+
         The only data to really connect is the frequency and S array.  At this point I have done nothing to interleave the frequency bands or deal with any overlap in frequency converage.
         """
         if not isinstance(S2, ScatteringModel):
             raise TypeError
-        
+
         f = np.hstack((self.farray, S2.farray))
-        
+
         if self.mixedmode and not S2.mixedmode:
             S2.toMixedMode()
             S = np.vstack((self.Sarray, S2.Sarray))
@@ -107,19 +121,19 @@ class ScatteringModel(object):
             S2.toSingleEnded()
             S = np.vstack((self.Sarray, S2.Sarray))
         else:
-            S = np.vstack((self.Sarray, S2.Sarray))        
+            S = np.vstack((self.Sarray, S2.Sarray))
 
         M = self.__copy__()
         M.farray = f
         M.Sarray = S
-        return M        
-    
+        return M
+
     def getPorts(self):
         return np.size(self.Sarray, 1) # Assume that it is square.
 
     def reorderPorts(self, reordering_l):
         """
-        Renumber the ports according to the provided list.  
+        Renumber the ports according to the provided list.
 
         reordering_l - lists the old port numbers in the positions of the new
         port numbers. I.e., reordering_l[0] = 5 would have old Port 5 be the new
@@ -127,46 +141,48 @@ class ScatteringModel(object):
         """
         self.Sarray = PortReorder(reordering_l, self.Sarray)
 
-    
+
+    # TODO: Add a function to adjust the self.zo when changing between mixed mode and single-ended.
     def toMixedMode(self):
         """
-        Change to mixed mode if self.mixedmode = False. 
+        Change to mixed mode if self.mixedmode = False.
         Do nothing if it is True.
         """
         if not self.mixedmode:
             mode = {True: 1, False: 0}[self.oe_ordering]
             self.Sarray = MixedMode(self.Sarray, mode)
             self.mixedmode = True
-            
-        return self       
-        
+
+        return self
+
     def toSingleEnded(self):
         """
-        Change to single-ended mode if self.mixedmode = True. 
+        Change to single-ended mode if self.mixedmode = True.
         Do nothing if it is False.
         """
         if self.mixedmode:
             mode = {True: 1, False: 0}[self.oe_ordering]
             self.Sarray = MixedMode(self.Sarray, mode, convert='To Single-Ended Mode')
             self.mixedmode = False
-            
+
         return self
-            
-    def Renormalize(self, Zo_vector = None):
+
+    # Renormalize is not ready for use yet.
+    def Renormalize(self, Zo = None, Zo_vector = None):
         """
         If Renormalize is run without a Zo_vector given, the S-parameters will
         be reset back to the original 50 ohm (or 100 ohm / 25 ohm for mixed
         modes).
         """
         if Zo_vector and hasattr(self, 'Soriginal'):
-            self.Sarray = self.Soriginal[:]            
+            self.Sarray = self.Soriginal[:]
         else:
-            Zo_base = [50,]*self.getPorts()     
+            Zo_base = [50,]*self.getPorts()
             self.Soriginal = self.Sarray[:]
             snew = renormalize(self.Sarray, Zo_base, Zo_vector)
             self.Sarray = snew
         return self.Sarray
-        
+
     def TransmissionMatrix(self):
         """
         Output the T-parameter equivalent of the scattering matrix
@@ -174,84 +190,84 @@ class ScatteringModel(object):
         port ordering.
         """
         pass
-    
+
     def T(self):
         """
         Short form of TransmissionMatrix.
         """
         return self.TransmissionMatrix()
-    
+
     def getZ(self, zo=None):
         """
         Translate the model to a Z matrix representation.
-        
+
         The function accepts Zo as an optional argument.  This will override the
-        models previous Zo if assigned.  If neither the argument Zo or the 
+        models previous Zo if assigned.  If neither the argument Zo or the
         model Zo is specified, 50 ohms is assumed.
         """
-        
+
         # Check if zo was specified and if it already exists as an attribute.
         if zo is None:
             if hasattr(self, 'Zo'):
                 zo = self.Zo
             else:
-                zo = 50.             
-        
+                zo = 50.
+
         mattype = self.Sarray.dtype
         Z = np.zeros(self.Sarray.shape, dtype=mattype)
         for k in range(Z.shape[0]):
             s = self.Sarray[k,:,:]
             u = np.eye(s.shape[0], dtype=mattype )
-            Z[k] = zo * np.dot( np.linalg.inv(u - s), (u + s) )           
-        
+            Z[k] = zo * np.dot( np.linalg.inv(u - s), (u + s) )
+
         return Z
 
     def getY(self, zo=None):
         """
         Translate the model to a Y matrix representation.
-        
+
         The function accepts Zo as an optional argument.  This will override the
-        models previous Zo if assigned.  If neither the argument Zo or the 
+        models previous Zo if assigned.  If neither the argument Zo or the
         model Zo is specified, 50 ohms is assumed.
         """
-        
+
         # Check if zo was specified and if it already exists as an attribute.
         if zo is None:
             if hasattr(self, 'Zo'):
                 zo = self.Zo
             else:
-                zo = 50.             
+                zo = 50.
         yo = 1./zo
-        
+
         mattype = self.Sarray.dtype
         Y = np.zeros(self.Sarray.shape, dtype=mattype)
         for k in range(Y.shape[0]):
             s = self.Sarray[k,:,:]
             u = np.eye(s.shape[0], dtype=mattype )
-            Y[k] = yo * np.dot( np.linalg.inv(u + s), (u - s) )           
-        
+            Y[k] = yo * np.dot( np.linalg.inv(u + s), (u - s) )
+
         return Y
-    
+
     def writeS(self, filename):
         """
         The filename argument assumes the base will be extracted from the model
         itself.
         """
         N = self.getPorts()
-        fn_out = filename + '.s' + str(N) + 'p'        
+        fn_out = filename + '.s' + str(N) + 'p'
         if hasattr(self, 'Zo'):
             Zo = self.Zo
         else:
             Zo = 50.
-        write(fn_out, self.farray, self.Sarray, 'HZ', 'S', 'RI', Zo)        
-    
+        write(fn_out, self.farray, self.Sarray, 'HZ', 'S', 'RI', Zo)
+
     def writeZ(self, filename):
         """
         The filename argument assumes the base will be extracted from the model
         itself.
         """
         N = self.getPorts()
-        fn_out = filename + '.z' + str(N) + 'p'       
+        fn_out = filename + '.z' + str(N) + 'p'
         if hasattr(self, 'Zo'):
             Zo = self.Zo
         else:
@@ -265,7 +281,7 @@ class ScatteringModel(object):
         """
         N = self.getPorts()
         M = len(self) # Returns the number of frequency points.
-    
+
         Smag_sl = ['|S[%d,%d]|' % (n1+1,n2+1) for n1 in range(N) for n2 in range(N)]
         header = 'Frequency,' + ','.join(Smag_sl)
 
@@ -279,7 +295,7 @@ class ScatteringModel(object):
                     TERMCHAR = '\n'
                 v = 20.*np.log10(np.abs(self[m,n1,:]))
                 Sout += ','.join(['%.6g' % vi for vi in v]) + TERMCHAR
-        
+
         if filename is not None:
             fout = open(filename, 'w')
             fout.write(Sout)
@@ -289,12 +305,18 @@ class ScatteringModel(object):
 
     def interpolate(self, frequency):
         return self.linear_interpolate(frequency)
-    
+
     def linear_interpolate(self, frequency):
         # Use searchsorted to find the correct frequency.
         pass
-    
 
+#####################################
+def dB(Y):
+    return 20.0*np.log10(np.abs(Y))
+
+def phase(Y):
+    return np.unwrap(np.angle(Y))
+#####################################
 
 ###########################################################################
 
@@ -308,7 +330,7 @@ def write(fn_out, freqArray, paramArray, frequnit, datatype, dataform, Refimp):
 
     def dbEntry(S):
         x = 20. * np.log10(np.abs(S))
-        y = np.angle(S) * 180. / math.pi        
+        y = np.angle(S) * 180. / math.pi
         return x, y
 
     def realimagEntry(S):
@@ -322,14 +344,14 @@ def write(fn_out, freqArray, paramArray, frequnit, datatype, dataform, Refimp):
             }[dataFormat.lower()](S)
         return result
     ########################################
-    
+
     if fn_out is None or fn_out == "":
         print( "No filename given." )
         return None
     filename = fn_out.strip()
 
     # Determine the number of ports.
-    extstMatch = re.search('\.[syz][1-9][0-9]*p$', filename)
+    extstMatch = re.search('\.[syzSYZ][1-9][0-9]*[pP]$', filename)
 
     n = 0 # number of ports
     if extstMatch:
@@ -354,7 +376,7 @@ def write(fn_out, freqArray, paramArray, frequnit, datatype, dataform, Refimp):
     outStr += '! \n! \n'
 
     # Figure out the line dimensions for the output.
-    
+
     if n <= 4:
         EntriesPerLine = { 1 : 1, 2 : 4, 3 : 3, 4 : 4 }[n] # ports : entries per line
     else:
@@ -373,7 +395,7 @@ def write(fn_out, freqArray, paramArray, frequnit, datatype, dataform, Refimp):
 
                 x, y = GetEntryPair(paramArray[I][J][K], dataform)
                 outStr += "%.12g %.12g " % (x, y)
-                
+
                 elemCount += 1
             if n == 2: # 2 ports is a special case.
                 pass
@@ -387,7 +409,7 @@ def write(fn_out, freqArray, paramArray, frequnit, datatype, dataform, Refimp):
     fid = open(filename, 'w')
     fid.write(outStr)
     fid.close()
-    
+
     return True
 
 ###########################################################################
@@ -412,14 +434,14 @@ def read(fn_in):
             }[dataFormat](x,y)
         return result
     ########################################
-    
+
     if fn_in is None or fn_in == "":
         print( "No filename given." )
         return None
     filename = fn_in.strip()
 
     # Determine the number of ports.
-    extstMatch = re.search('\.[szy][1-9][0-9]*p$', filename)
+    extstMatch = re.search('\.[syzSYZ][1-9][0-9]*[pP]$', filename)
 
     n = 0 # number of ports
     if extstMatch:
@@ -448,7 +470,7 @@ def read(fn_in):
         freqMult = 1.e6
     elif re.search('[ \t]+ghz', iline):
         freqMult = 1.e9
-        
+
     if re.search('[ \t]+db', iline):
         dataform = 'db';
     elif re.search('[ \t]+ma', iline):
@@ -503,9 +525,9 @@ def read(fn_in):
         #print( I, freqArray[I] )
         #print( istart, entryList[istart], len(entryList) )
         #print( iend, entryList[iend] )
-        
+
         freqArray[I] = float(entryList[istart])*freqMult
-        
+
         paramdata = entryList[(istart+1):iend]
         indexCnt = 0
         for J in range(0,n):
@@ -567,7 +589,7 @@ def MixedMode(S, mode = 1, convert='To Mixed Mode'):
 
     """
     Nports = np.size(S, 1)
-    
+
     a = None
     av = []
     if mode == 0:
@@ -585,7 +607,7 @@ def MixedMode(S, mode = 1, convert='To Mixed Mode'):
         for I in range(int(Nports/4)):
             aav = [0,]*Nports
             aav[4*I] = 1.0
-            aav[4*I+2] = -1.0            
+            aav[4*I+2] = -1.0
             av.append(aav)
             aav = [0,]*Nports
             aav[4*I+1] = 1.0
@@ -594,21 +616,21 @@ def MixedMode(S, mode = 1, convert='To Mixed Mode'):
         for I in range(int(Nports/4)):
             aav = [0,]*Nports
             aav[4*I] = 1.0
-            aav[4*I+2] = 1.0            
+            aav[4*I+2] = 1.0
             av.append(aav)
             aav = [0,]*Nports
             aav[4*I+1] = 1.0
             aav[4*I+3] = 1.0
             av.append(aav)
-            
+
     a = np.matrix(av)/np.sqrt(2.0)
     #print( a )
-    
+
     #print( np.size(S,0), np.size(S,1), np.size(S,2) )
     #print( np.size(Smixed,0), np.size(Smixed,1), np.size(Smixed,2) )
     Smatrix = [np.matrix(s) for s in S]
     if convert == 'To Mixed Mode':
-        Smixed = np.array([a*smat*np.transpose(a) for smat in Smatrix])        
+        Smixed = np.array([a*smat*np.transpose(a) for smat in Smatrix])
         return Smixed
     elif convert == 'To Single-Ended Mode':
         Sse = np.array([np.transpose(a)*smat*a for smat in Smatrix])
@@ -623,16 +645,16 @@ def OddEvenPortReorderMatrix(N):
     that the odds are listed first, and the evens are listed second. So,
     [a1,a2,a3,a4] is reordered to [a1,a3,a2,a4].  This is a useful transformation
     for prepping the S-parameter matrix to convert it to T-parameters and back.
-    
+
     Part of the assumption is that the odd ports are network inputs and the even
     ports are network outputs.  If the ordering is [1,N/2] as inputs and [N/2+1,N]
     as outputs, this reordering is not required before converting to T-parameters.
-    """  
-    
+    """
+
     if N % 2 == 1:
         print( "N (%d) must be an even number for this reordering matrix." )
         return None
-    
+
     return np.hstack( [ np.eye(N)[:,::2], np.eye(N)[:,1::2] ] )
 
 ################################################################################
@@ -641,53 +663,53 @@ def CombineNPortTouchstones(Ports, PortFileMap):
     """
     ts filename, p1, p2, p3, p4
     """
-    
+
     partialSparams = []
     for filemap in PortFileMap:
         print( filemap )
         thisMap = filemap[:]
         model = readmodel(thisMap.pop(0))
-        
-        # After popping the name off, there should just be a map from VNA port 
+
+        # After popping the name off, there should just be a map from VNA port
         # to New port number.
         partialSparams.append({'model': model,\
                                'portmap': thisMap})
-    
+
     # Arbitrarily take the first model and assume they have the same frequency arrays.
     thisModel = partialSparams[0]['model']
     fnew = thisModel.farray
     Nfreq = len(fnew)
-    
+
     # Create a new model with the number of ports specified above.
     snew = np.zeros((Nfreq, Ports, Ports), dtype=np.complex)
     for param in partialSparams:
         model = param['model']
         portmap = param['portmap']
-        
+
         for m in range(len(portmap)):
             for n in range(len(portmap)):
                 mnew = int(portmap[m])-1
                 nnew = int(portmap[n])-1
                 print( "mvna %d -> mdut %d\tnvna %d -> ndut %d" % (m, mnew, n, nnew) )
-                # I'm not getting my imaginary numbers below. 
+                # I'm not getting my imaginary numbers below.
                 snew[:,mnew,nnew] = model.Sarray[:,m,n]
-    
+
     write('test.s%dp' % Ports, fnew, snew, 'hz', 's', 'ri', 50)
     #write(fn_out, freqArray, paramArray, frequnit, datatype, dataform, Refimp)
-    
+
     return fnew, snew
-        
+
 ################################################################################
 
 def PortReorder(reordering_l, S):
     N = np.size(S,1)
     lam = np.zeros((len(reordering_l),N))
-    
+
     for ii, old_port in enumerate(reordering_l):
         lam[ii, old_port-1] = 1.
 
     Sreordered = np.array([np.dot(np.dot(lam, s), lam.T) for s in S])
-    
+
     return Sreordered
 
 ################################################################################
@@ -695,7 +717,7 @@ dB = lambda y : 20.0*np.log10(np.abs(y))
 
 def ReturnLoss2x2(model_l, plot_args_l, **kwargs):
     plot_mixedmode = kwargs.get('mixedmode', True)
-    
+
     if plot_mixedmode:
         for mi in model_l:
             mi.toMixedMode() # set to mixed mode if not alerady.
@@ -704,13 +726,13 @@ def ReturnLoss2x2(model_l, plot_args_l, **kwargs):
         for mi in model_l:
             mi.toSingleEnded()
         port_l = range(1,5)
-    
+
     trace_l = zip(port_l,port_l) # Return loss observes the same port as the input.
     return Plot2x2(model_l, plot_args_l, trace_l, **kwargs)
 
 # def InsertionLoss2x1(model_l, plot_args_l, **kwargs):
 #     plot_mixedmode = kwargs.get('mixedmode', True)
-#     
+#
 #     if plot_mixedmode:
 #         for mi in model_l:
 #             mi.toMixedMode() # set to mixed mode if not alerady.
@@ -719,7 +741,7 @@ def ReturnLoss2x2(model_l, plot_args_l, **kwargs):
 #         for mi in model_l:
 #             mi.toSingleEnded()
 #         port_l = [(2,1), (4,3)]
-#     
+#
 #     # Return loss observes the same port as the input.
 #     return Plot2x1(model_l, plot_args_l, port_l, **kwargs)
 
@@ -728,7 +750,7 @@ def TransModeConversion2x2(model_l, plot_args_l, **kwargs):
     for mi in model_l:
         mixedmode_previously.append(mi.mixedmode)
         mi.toMixedMode()
-    
+
     trace_l = [('c2','d1'), ('d2','c1'),('c1','d2'),('d1','c2')]
     return Plot2x2(model_l, plot_args_l, trace_l, **kwargs)
 
@@ -737,20 +759,20 @@ def ReflModeConversion2x2(model_l, plot_args_l, **kwargs):
     for mi in model_l:
         mixedmode_previously.append(mi.mixedmode)
         mi.toMixedMode()
-    
+
     trace_l = [('c1','d1'), ('d1','c1'),('c2','d2'),('d2','c2')]
     return Plot2x2(model_l, plot_args_l, trace_l, **kwargs)
 
 def Plot2x2(model_l, plot_args_l, trace_l, **kwargs):
-    from matplotlib.pyplot import figure    
+    from matplotlib.pyplot import figure
     from cramsens.plot_tools import remove_xtick_labels, set_xlim, set_ylim, savefigure
-    
+
     fig = figure()
-    fig.subplots_adjust(left=0.09, bottom=0.08, right=0.91, top=0.92, 
+    fig.subplots_adjust(left=0.09, bottom=0.08, right=0.91, top=0.92,
                         hspace=0.08, wspace=0.07)
-    
+
     if 'title' in kwargs: fig.suptitle(kwargs['title'], fontsize=16)
-          
+
     ax1 = fig.add_subplot(2,2,1)
     remove_xtick_labels(ax1)
     ax2 = fig.add_subplot(2,2,2,sharex=ax1)
@@ -762,82 +784,75 @@ def Plot2x2(model_l, plot_args_l, trace_l, **kwargs):
     ax4.yaxis.tick_right()
     ax4.yaxis.set_label_position("right")
     ax_l = [ax1, ax2, ax3, ax4]
-    
-    
-    
+
+
+
     xlabels = ['',]*2 + ['Frequency (GHz)',]*2
-    ylabels = []    
+    ylabels = []
     for pout, pi in trace_l:
         ylabels.append(r'$|S_{%s%s}|$ (dB)' % (str(pout).upper(),str(pi).upper()))
-        
+
     for ii, axi in enumerate(ax_l):
         axi.grid(True)
         axi.set_xlabel(xlabels[ii])
         axi.set_ylabel(ylabels[ii])
-    
+
     xfcn = kwargs.get('xfcn', lambda x : x/1e9)
     yfcn = kwargs.get('yfcn', dB)
     for mi, pai in zip(model_l, plot_args_l):
         for axi, porti in zip(ax_l,trace_l):
             axi.plot(xfcn(mi.farray), yfcn(mi.getTrace(porti[0],porti[1])), **pai)
-    
+
     if 'ylim' in kwargs:
         for axi in ax_l:
             set_ylim(axi, kwargs['ylim'])
-        
+
     if 'ylim_l' in kwargs:
-        for axi, ylim_i in zip(ax_l, kwargs['ylim_l']): 
+        for axi, ylim_i in zip(ax_l, kwargs['ylim_l']):
             set_ylim(axi, ylim_i)
-            
+
     if 'xlim' in kwargs:
         set_xlim(ax1, kwargs['xlim'])
 
     ax1.legend(loc='best')
 
     if 'filename' in kwargs: savefigure(fig, kwargs['filename'])
-                
+
     fig.show()
     return fig
 
-        
+
 def zin_from_s21(model, port1=1, port2=2, zo=50.0):
     """Based on the expression in Istvan Novak's '99 DesignCon presentation,
     this routine uses the expression on page 30 of his presentation.  Lp = 0
-    is assumed, since it is--for practical purposes--calibrated out of the 
+    is assumed, since it is--for practical purposes--calibrated out of the
     measurement."""
-    
+
     s21 = model.getTrace(port1, port2)
     zin = s21 * (zo/2.0) / (1.0 - s21)
-    
+
     return zin
 
 def ztrans_from_s21(model, port1=1, port2=2, zo=50.0):
     """similar"""
     s21 = model.getTrace(port1, port2)
+    # TODO: Finish this routine.
 
 ###############################################################################
-def renormalize(S, Zprev, Znew):    
+def renormalize(S, Zprev, Znew):
     inv = np.linalg.inv
-    
+
     Snew = np.zeros(S.shape, dtype=np.complex128)
-    
+
     Zp = np.array(Zprev)
     Zn = np.array(Znew)
-    R = np.matrix(np.diag(((Zn - Zp)/(Zn + Zp))))    
+    R = np.matrix(np.diag(((Zn - Zp)/(Zn + Zp))))
     A = np.matrix(np.diag((np.sqrt(Zn/Zp)/(Zn+Zp))))
     I = np.matrix(np.eye(Snew.shape[1]))
-    
+
     for ii in range(Snew.shape[0]):
         s0 = S[ii,:,:]
         s1 = inv(A) * (s0-R) * inv((I - (R*s0))) * A
         Snew[ii,:,:] = s1
-        
+
     return Snew
-    
-    
-    
-    
-    
-    
-    
-    
