@@ -4,7 +4,8 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 
 import os
-import touchstone as ts
+#import touchstone as ts
+from util.touchstone import readmodel as ts_readmodel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit,\
     QFileDialog, QPushButton, QCheckBox, QDialog, \
@@ -14,8 +15,8 @@ from PyQt5.QtWidgets import QApplication, QWidget, QLabel, QLineEdit,\
 
 from numpy import size, array, log10, abs, angle, pi, real, imag, unwrap
 import matplotlib.pyplot as plt
-from Jsonify import *
-from Json_Plotter import *
+from util.Jsonify import *
+from util.Json_Plotter import *
 
 
 def dB(x):
@@ -162,10 +163,10 @@ class sParamPlotter_(QMainWindow): #QtGui.QMainWindow):
             SModel = None
             model_index = len(self.models)
             if useBalSparms == 1:
-                SModel = ts.readmodel(fullpath, oe_ordering=bool(useOEOrdering))
+                SModel = ts_readmodel(fullpath, oe_ordering=bool(useOEOrdering))
                 SModel.toMixedMode()
             else:
-                SModel = ts.readmodel(fullpath, oe_ordering=bool(useOEOrdering))
+                SModel = ts_readmodel(fullpath, oe_ordering=bool(useOEOrdering))
     
             N = SModel.getPorts()
             self.models.append(SModel)
