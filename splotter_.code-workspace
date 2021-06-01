@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.condaPath": "/home/michael/anaconda3/bin/conda"
+	}
+}
